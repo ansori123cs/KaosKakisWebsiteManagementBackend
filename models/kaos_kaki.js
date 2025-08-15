@@ -32,10 +32,9 @@ export default class kaos_kaki extends Model {
       type: DataTypes.DATEONLY,
       allowNull: true
     },
-    stok: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0
+    kode_kaos_kaki: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     sequelize,

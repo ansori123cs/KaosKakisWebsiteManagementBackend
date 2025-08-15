@@ -14,6 +14,10 @@ export default class warna extends Model {
       type: DataTypes.STRING(255),
       allowNull: false,
       unique: "warna_nama_key"
+    },
+    kode_warna: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     sequelize,

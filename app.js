@@ -8,11 +8,10 @@ import authRouter from './routes/auth.routes.js';
 import userRouter from './routes/users.routes.js';
 import kaosKakiRouter from './routes/kaosKakis.routes.js';
 
-import connectToDatabase from './database/mongodb.js';
-
 import errorMiddleware from './middleware/error.middleware.js';
 import arcjetMiddleware from './middleware/arcjet.middleware.js';
 import sequelize from './config/databaseConfig.js';
+import mastersRoutes from './routes/masters.routes.js';
 
 const app = express();
 
@@ -53,6 +52,7 @@ app.use('/uploads', express.static('uploads'));
 
 //Router
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/masters', mastersRoutes);
 app.use('/api/v1/kaosKakis', kaosKakiRouter);
 app.use('/api/v1/users', userRouter);
 
@@ -72,7 +72,6 @@ app.use('/', async (req, res) => {
 //listen port
 app.listen(PORT, async () => {
   console.log(`Jangkar Mas API is runnin on http://localhost:${PORT}`);
-  await connectToDatabase();
 });
 
 export default app;

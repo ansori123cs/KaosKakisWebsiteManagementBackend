@@ -31,7 +31,7 @@ export default class foto_kaos_kaki extends Model {
     sequelize,
     tableName: 'foto_kaos_kaki',
     schema: 'public',
-    timestamps: false,
+    timestamps: true,
     indexes: [
       {
         name: "foto_kaos_kaki_pkey",

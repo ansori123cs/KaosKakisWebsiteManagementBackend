@@ -14,6 +14,10 @@ export default class jenis_bahan extends Model {
       type: DataTypes.STRING(255),
       allowNull: false,
       unique: "jenis_bahan_nama_key"
+    },
+    kode_bahan: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     sequelize,

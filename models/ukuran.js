@@ -14,6 +14,10 @@ export default class ukuran extends Model {
       type: DataTypes.STRING(255),
       allowNull: false,
       unique: "ukuran_nama_key"
+    },
+    kode_ukuran: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     sequelize,

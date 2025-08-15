@@ -1,6 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/env.js';
-import users from '../models/users.js';
+import sequelize from '../config/databaseConfig.js';
+
+import models from '../models/init-models.js';
+const { users } = models(sequelize);
 
 const authorize = async (req, res, next) => {
   try {

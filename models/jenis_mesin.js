@@ -14,6 +14,10 @@ export default class jenis_mesin extends Model {
       type: DataTypes.STRING(255),
       allowNull: false,
       unique: "data_mesin_nama_key"
+    },
+    kode_mesin: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     sequelize,

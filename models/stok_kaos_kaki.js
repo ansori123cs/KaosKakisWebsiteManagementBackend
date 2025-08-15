@@ -1,47 +1,52 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class pesanan_detail extends Model {
+export default class stok_kaos_kaki extends Model {
   static init(sequelize, DataTypes) {
   return super.init({
     id: {
       autoIncrement: true,
-      type: DataTypes.INTEGER,
+      autoIncrementIdentity: true,
+      type: DataTypes.BIGINT,
       allowNull: false,
       primaryKey: true
     },
-    pesanan_id: {
+    id_kaos: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
-        model: 'pesanan',
+        model: 'kaos_kaki',
         key: 'id'
       }
     },
-    kaos_kaki_variasi_id: {
+    id_ukuran: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
-        model: 'kaos_kaki_variasi_detail',
+        model: 'ukuran',
         key: 'id'
       }
     },
-    jumlah: {
+    id_warna: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: true,
+      references: {
+        model: 'warna',
+        key: 'id'
+      }
     },
-    harga_satuan: {
-      type: DataTypes.DECIMAL,
-      allowNull: false
+    stok: {
+      type: DataTypes.BIGINT,
+      allowNull: true
     }
   }, {
     sequelize,
-    tableName: 'pesanan_detail',
+    tableName: 'stok_kaos_kaki',
     schema: 'public',
-    timestamps: false,
+    timestamps: true,
     indexes: [
       {
-        name: "pesanan_detail_pkey",
+        name: "stok_kaos_kaki_pkey",
         unique: true,
         fields: [
           { name: "id" },

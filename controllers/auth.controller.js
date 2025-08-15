@@ -80,9 +80,8 @@ export const SignUp = async (req, res, next) => {
 export const SignIn = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
     // cari user
-    const user = await users.findOne({ where: { email } });
+    const user = await users.findAll({ where: { email: email } });
     if (!user) {
       const error = new Error('Email atau password salah');
       error.statusCode = 404;
@@ -90,7 +89,7 @@ export const SignIn = async (req, res, next) => {
     }
 
     // cek password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user[0].password);
     if (!isPasswordValid) {
       const error = new Error('Email atau password salah');
       error.statusCode = 401;
@@ -98,8 +97,8 @@ export const SignIn = async (req, res, next) => {
     }
 
     // buat token
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || JWT_EXPIRES_IN,
     });
 
     res.status(200).json({
@@ -107,7 +106,11 @@ export const SignIn = async (req, res, next) => {
       message: 'Login Berhasil',
       data: {
         token,
-        user,
+        user: {
+          nama_user: user[0].nama_user,
+          email: user[0].email,
+          telephone_number: user[0].telephone_number,
+        },
       },
     });
   } catch (error) {
