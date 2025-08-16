@@ -3,10 +3,35 @@ import sequelize from '../config/databaseConfig.js';
 import models from '../models/init-models.js';
 const { jenis_bahan, jenis_mesin, ukuran, warna } = models(sequelize);
 
+//modul jenis bahan=============================================================================//
+
+//get all jenis bahan
+export const getAllJenisBahan = async (req, res, next) => {
+  try {
+    const jenisBahanList = await jenis_bahan.findAll();
+
+    if (jenisBahanList.length === 0 || !jenisBahanList) {
+      const error = new Error('List Jenis Bahan Kosong');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'List Jenis Bahan',
+      data: {
+        jenisBahanList: jenisBahanList,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 //create new jenis bahan
 export const createNewJenisBahan = async (req, res, next) => {
-  const t = await sequelize.transaction();
   try {
+    const t = await sequelize.transaction();
     const { nama_jenis_b, kode_jenis_b } = req.body;
 
     // Validasi input
@@ -16,7 +41,7 @@ export const createNewJenisBahan = async (req, res, next) => {
       throw error;
     }
 
-    // Cek user sudah ada atau belum
+    // Cek bahan sudah ada atau belum
     const existingJenisBahan = await jenis_bahan.findAll({
       where: { nama: nama_jenis_b },
       transaction: t,
@@ -54,6 +79,94 @@ export const createNewJenisBahan = async (req, res, next) => {
     next(error);
   }
 };
+
+//update jenis bahan
+
+export const updateJenisBahan = async (req, res, next) => {
+  try {
+    const t = await sequelize.transaction();
+    const { nama_jenis_b, kode_jenis_b } = req.body;
+
+    // Validasi input
+    if (!kode_jenis_b) {
+      const error = new Error('Silahka pilih Jenis Bahan');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const updateJenisBahan = await jenis_bahan.update(
+      {
+        nama: nama_jenis_b,
+      },
+      {
+        where: {
+          kode_bahan: kode_jenis_b,
+        },
+      },
+      {
+        transaction: t,
+      }
+    );
+
+    await t.commit();
+    res.status(201).json({
+      success: true,
+      message: 'Sukses Jenis Bahan Diupdate',
+      data: {
+        kode_jenis_b: kode_jenis_b,
+        nama_jenis_b: nama_jenis_b,
+      },
+    });
+  } catch (error) {
+    if (t && !t.finished) {
+      await t.rollback();
+    }
+    next(error);
+  }
+};
+
+//delete Jenis Bahan
+export const deleteJenisBahan = async (req, res, next) => {
+  try {
+    const t = await sequelize.transaction();
+    const { kode_jenis_b } = req.body;
+
+    // Validasi input
+    if (!kode_jenis_b) {
+      const error = new Error('Silahka pilih Jenis Bahan');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const deleteJenisBahan = await jenis_bahan.destroy(
+      {
+        where: {
+          kode_bahan: kode_jenis_b,
+        },
+      },
+      {
+        transaction: t,
+      }
+    );
+
+    await t.commit();
+    res.status(201).json({
+      success: true,
+      message: 'Sukses Jenis Bahan Diupdate',
+      data: {
+        kode_jenis_b: kode_jenis_b,
+        nama_jenis_b: nama_jenis_b,
+      },
+    });
+  } catch (error) {
+    if (t && !t.finished) {
+      await t.rollback();
+    }
+    next(error);
+  }
+};
+
+//modul jenis mesin=============================================================================//
 
 //create new jenis mesin
 export const createNewJenisMesin = async (req, res, next) => {
