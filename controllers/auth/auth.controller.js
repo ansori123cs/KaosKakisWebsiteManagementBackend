@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { JWT_EXPIRES_IN, JWT_SECRET } from '../config/env.js';
-import sequelize from '../config/databaseConfig.js';
+import { JWT_EXPIRES_IN, JWT_SECRET } from '../../config/env.js';
+import sequelize from '../../config/databaseConfig.js';
 
-import models from '../models/init-models.js';
+import models from '../../models/init-models.js';
 const { users } = models(sequelize);
 // REGISTER
 export const SignUp = async (req, res, next) => {

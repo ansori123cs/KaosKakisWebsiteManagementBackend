@@ -1,5 +1,5 @@
 // controllers/user.controller.js
-import users from '../models/users.js';
+import users from '../../models/users.js';
 
 export const getUsers = async (req, res, next) => {
   try {

@@ -1,7 +1,7 @@
-import DataMesin from '../models/data_mesin.model.js';
-import JenisBahan from '../models/jenis_bahan.model.js';
-import KaosKaki from '../models/kaos_kaki.model.js';
-import PhotoKaosKaki from '../models/photo_kaos_kaki.model.js';
+import DataMesin from '../../models/data_mesin.model.js';
+import JenisBahan from '../../models/jenis_bahan.model.js';
+import KaosKaki from '../../models/kaos_kaki.model.js';
+import PhotoKaosKaki from '../../models/photo_kaos_kaki.model.js';
 
 // CREATE PHOTO HELPER
 const createPhotoKaosKaki = async (imagePath, kaosKakiId) => {

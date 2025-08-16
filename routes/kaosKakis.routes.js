@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import authorize from '../middleware/auth.middleware.js';
 import upload from '../middleware/upload.middleware.js';
-import { createDataMesin, createJenisBahan, createKaosKaki, deleteKaosKaki, getAllKaosKaki, getKaosKakiById, updateKaosKaki } from '../controllers/kaos.controller.js';
+import { createDataMesin, createJenisBahan, createKaosKaki, deleteKaosKaki, getAllKaosKaki, getKaosKakiById, updateKaosKaki } from '../controllers//transaction/kaos.controller.js';
 
 const kaosKakiRouter = Router();
 
