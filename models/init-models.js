@@ -8,6 +8,7 @@ import _kaos_kaki from  "./kaos_kaki.js";
 import _kaos_kaki_variasi_detail from  "./kaos_kaki_variasi_detail.js";
 import _pesanan from  "./pesanan.js";
 import _pesanan_detail from  "./pesanan_detail.js";
+import _status from  "./status.js";
 import _stok_kaos_kaki from  "./stok_kaos_kaki.js";
 import _ukuran from  "./ukuran.js";
 import _users from  "./users.js";
@@ -22,6 +23,7 @@ export default function initModels(sequelize) {
   const kaos_kaki_variasi_detail = _kaos_kaki_variasi_detail.init(sequelize, DataTypes);
   const pesanan = _pesanan.init(sequelize, DataTypes);
   const pesanan_detail = _pesanan_detail.init(sequelize, DataTypes);
+  const status = _status.init(sequelize, DataTypes);
   const stok_kaos_kaki = _stok_kaos_kaki.init(sequelize, DataTypes);
   const ukuran = _ukuran.init(sequelize, DataTypes);
   const users = _users.init(sequelize, DataTypes);
@@ -61,6 +63,7 @@ export default function initModels(sequelize) {
     kaos_kaki_variasi_detail,
     pesanan,
     pesanan_detail,
+    status,
     stok_kaos_kaki,
     ukuran,
     users,

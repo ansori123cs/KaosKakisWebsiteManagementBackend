@@ -18,6 +18,10 @@ export default class jenis_bahan extends Model {
     kode_bahan: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    status: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   }, {
     sequelize,

@@ -1,7 +1,7 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class users extends Model {
+export default class status extends Model {
   static init(sequelize, DataTypes) {
   return super.init({
     id: {
@@ -11,35 +11,27 @@ export default class users extends Model {
       allowNull: false,
       primaryKey: true
     },
-    nama_user: {
-      type: DataTypes.STRING,
+    enum: {
+      type: DataTypes.INTEGER,
       allowNull: true
     },
-    email: {
-      type: DataTypes.STRING,
+    message: {
+      type: DataTypes.TEXT,
       allowNull: true
     },
-    password: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    refresh_token: {
-      type: DataTypes.STRING,
+    cratedAt: {
+      type: DataTypes.DATE,
       allowNull: false,
-      defaultValue: "refresh_token_secret_key"
-    },
-    telephone_number: {
-      type: DataTypes.STRING,
-      allowNull: true
+      defaultValue: Sequelize.Sequelize.fn('now')
     }
   }, {
     sequelize,
-    tableName: 'users',
+    tableName: 'status',
     schema: 'public',
     timestamps: true,
     indexes: [
       {
-        name: "users_pkey",
+        name: "status_pkey",
         unique: true,
         fields: [
           { name: "id" },

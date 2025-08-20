@@ -6,7 +6,6 @@ import fs from 'fs';
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Validasi req.nameFolder
-    console.log(req.nameFolder);
     if (!req.nameFolder) {
       return cb(new Error('Nama folder tidak tersedia'), null);
     }

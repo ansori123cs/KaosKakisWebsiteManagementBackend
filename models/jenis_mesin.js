@@ -18,6 +18,10 @@ export default class jenis_mesin extends Model {
     kode_mesin: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    status: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   }, {
     sequelize,

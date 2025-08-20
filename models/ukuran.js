@@ -18,6 +18,10 @@ export default class ukuran extends Model {
     kode_ukuran: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    status: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   }, {
     sequelize,

@@ -14,7 +14,7 @@ kaosKakiRouter.post(
   authorize,
   (req, res, next) => {
     const productName = req.body.namaKaosKaki || 'KaosKakisImages';
-    console.log(req.body);
+
     req.nameFolder = productName
       .toLowerCase()
       .replace(/\s+/g, '-')

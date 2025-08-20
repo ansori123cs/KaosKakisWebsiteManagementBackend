@@ -1,5 +1,5 @@
+import { Op } from 'sequelize';
 import sequelize from '../../config/databaseConfig.js';
-
 import models from '../../models/init-models.js';
 const { warna } = models(sequelize);
 
@@ -92,6 +92,7 @@ export const createNewJenisWarna = async (req, res, next) => {
       {
         nama: nama_jenis,
         kode_warna: kode_jenis,
+        status: 1,
       },
       {
         transaction: t,
@@ -126,7 +127,7 @@ export const updateJenisWarna = async (req, res, next) => {
   try {
     t = await sequelize.transaction();
     const { id } = req.params; // Menggunakan ID sebagai parameter
-    const { nama_jenis, kode_jenis } = req.body;
+    const { nama_jenis, kode_jenis, status_jenis } = req.body;
 
     // Validasi input
     if (!id) {
@@ -188,7 +189,7 @@ export const updateJenisWarna = async (req, res, next) => {
       {
         nama: nama_jenis.trim(),
         kode_warna: kode_jenis.trim(),
-        // updated_at: new Date()
+        status: status_jenis,
       },
       {
         where: { id },
@@ -253,12 +254,16 @@ export const deleteJenisWarna = async (req, res, next) => {
       throw error;
     }
 
-    // Hapus data
-    const [affectedRows] = await warna.destroy({
-      where: { id },
-      transaction: t,
-    });
-
+    // Update status data menjadi 0 keperluan audit
+    const [affectedRows] = await warna.update(
+      {
+        status: 0,
+      },
+      {
+        where: { id },
+        transaction: t,
+      }
+    );
     if (affectedRows === 0) {
       const error = new Error('Tidak ada data yang dihapus');
       error.statusCode = 404;

@@ -1,7 +1,7 @@
+import { Op } from 'sequelize';
 import sequelize from '../../config/databaseConfig.js';
-
 import models from '../../models/init-models.js';
-const { jenis_bahan, jenis_mesin, ukuran, warna } = models(sequelize);
+const { jenis_bahan } = models(sequelize);
 
 //get all jenis bahan
 export const getAllJenisBahan = async (req, res, next) => {
@@ -92,6 +92,7 @@ export const createNewJenisBahan = async (req, res, next) => {
       {
         nama: nama_jenis,
         kode_bahan: kode_jenis,
+        status: 1,
       },
       {
         transaction: t,
@@ -126,7 +127,7 @@ export const updateJenisBahan = async (req, res, next) => {
   try {
     t = await sequelize.transaction();
     const { id } = req.params; // Menggunakan ID sebagai parameter
-    const { nama_jenis, kode_jenis } = req.body;
+    const { nama_jenis, kode_jenis, status_jenis } = req.body;
 
     // Validasi input
     if (!id) {
@@ -157,7 +158,7 @@ export const updateJenisBahan = async (req, res, next) => {
     const duplicateKode = await jenis_bahan.findOne({
       where: {
         kode_bahan: kode_jenis,
-        id: { [Op.ne]: id }, // Tidak termasuk record saat ini
+        id: { [Op.ne]: id },
       },
       transaction: t,
     });
@@ -188,7 +189,7 @@ export const updateJenisBahan = async (req, res, next) => {
       {
         nama: nama_jenis.trim(),
         kode_bahan: kode_jenis.trim(),
-        // updated_at: new Date()
+        status: status_jenis,
       },
       {
         where: { id },
@@ -253,11 +254,16 @@ export const deleteJenisBahan = async (req, res, next) => {
       throw error;
     }
 
-    // Hapus data
-    const [affectedRows] = await jenis_bahan.destroy({
-      where: { id },
-      transaction: t,
-    });
+    // Update status data menjadi 0 keperluan audit
+    const [affectedRows] = await jenis_bahan.update(
+      {
+        status: 0,
+      },
+      {
+        where: { id },
+        transaction: t,
+      }
+    );
 
     if (affectedRows === 0) {
       const error = new Error('Tidak ada data yang dihapus');

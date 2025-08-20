@@ -1,5 +1,8 @@
 // controllers/user.controller.js
-import users from '../../models/users.js';
+import sequelize from '../../config/databaseConfig.js';
+
+import models from '../../models/init-models.js';
+const { users } = models(sequelize);
 
 export const getUsers = async (req, res, next) => {
   try {

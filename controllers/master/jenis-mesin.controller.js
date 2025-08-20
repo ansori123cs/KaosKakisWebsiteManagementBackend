@@ -1,5 +1,5 @@
+import { Op } from 'sequelize';
 import sequelize from '../../config/databaseConfig.js';
-
 import models from '../../models/init-models.js';
 const { jenis_mesin } = models(sequelize);
 
@@ -92,6 +92,7 @@ export const createNewJenisMesin = async (req, res, next) => {
       {
         nama: nama_jenis,
         kode_mesin: kode_jenis,
+        status: 1,
       },
       {
         transaction: t,
@@ -125,8 +126,8 @@ export const updateJenisMesin = async (req, res, next) => {
   let t;
   try {
     t = await sequelize.transaction();
-    const { id } = req.params; // Menggunakan ID sebagai parameter
-    const { nama_jenis, kode_jenis } = req.body;
+    const { id } = req.params;
+    const { nama_jenis, kode_jenis, status_jenis } = req.body;
 
     // Validasi input
     if (!id) {
@@ -188,7 +189,7 @@ export const updateJenisMesin = async (req, res, next) => {
       {
         nama: nama_jenis.trim(),
         kode_mesin: kode_jenis.trim(),
-        // updated_at: new Date()
+        status: status_jenis,
       },
       {
         where: { id },
@@ -196,6 +197,7 @@ export const updateJenisMesin = async (req, res, next) => {
       }
     );
 
+    console.log(affectedRows);
     if (affectedRows === 0) {
       const error = new Error('Tidak ada data yang diupdate');
       error.statusCode = 404;
@@ -221,7 +223,7 @@ export const updateJenisMesin = async (req, res, next) => {
     }
     if (!error.statusCode) {
       error.statusCode = 500;
-      error.message = 'Gagal mengupdate jenis mesin';
+      error.message = 'Gagal mengupdate jenis mesin' + error;
     }
     next(error);
   }
@@ -253,12 +255,16 @@ export const deleteJenisMesin = async (req, res, next) => {
       throw error;
     }
 
-    // Hapus data
-    const [affectedRows] = await jenis_mesin.destroy({
-      where: { id },
-      transaction: t,
-    });
-
+    // Update status data menjadi 0 keperluan audit
+    const [affectedRows] = await jenis_mesin.update(
+      {
+        status: 0,
+      },
+      {
+        where: { id },
+        transaction: t,
+      }
+    );
     if (affectedRows === 0) {
       const error = new Error('Tidak ada data yang dihapus');
       error.statusCode = 404;

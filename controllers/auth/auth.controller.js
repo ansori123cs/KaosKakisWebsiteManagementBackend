@@ -1,10 +1,12 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { JWT_EXPIRES_IN, JWT_SECRET } from '../../config/env.js';
+
 import sequelize from '../../config/databaseConfig.js';
 
 import models from '../../models/init-models.js';
 const { users } = models(sequelize);
+
 // REGISTER
 export const SignUp = async (req, res, next) => {
   const t = await sequelize.transaction();
@@ -68,7 +70,6 @@ export const SignUp = async (req, res, next) => {
       },
     });
   } catch (error) {
-    // Rollback hanya jika transaction ada dan belum selesai
     if (t && !t.finished) {
       await t.rollback();
     }
@@ -118,7 +119,6 @@ export const SignIn = async (req, res, next) => {
   }
 };
 
-// LOGOUT (opsional — biasanya cukup hapus token di sisi client)
 export const SignOut = async (req, res, next) => {
   try {
     res.status(200).json({

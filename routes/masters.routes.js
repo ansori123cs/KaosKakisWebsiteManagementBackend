@@ -12,9 +12,9 @@ mastersRoutes.get('/listJenisBahan', authorize, getAllJenisBahan); //get JenisBa
 
 mastersRoutes.post('/newJenisBahan', authorize, createNewJenisBahan); //new JenisBahan
 
-mastersRoutes.post('/updateJenisBahan', authorize, updateJenisBahan); //update JenisBahan
+mastersRoutes.post('/updateJenisBahan/:id', authorize, updateJenisBahan); //update JenisBahan
 
-mastersRoutes.post('/deleteJenisBahan', authorize, deleteJenisBahan); //delete JenisBahan
+mastersRoutes.post('/deleteJenisBahan/:id', authorize, deleteJenisBahan); //delete JenisBahan
 
 //========================================================================================//
 
@@ -23,9 +23,9 @@ mastersRoutes.get('/listJenisMesin', authorize, getAllJenisMesin); //get JenisMe
 
 mastersRoutes.post('/newJenisMesin', authorize, createNewJenisMesin); //new JenisMesin
 
-mastersRoutes.post('/updateJenisMesin', authorize, updateJenisMesin); //update JenisMesin
+mastersRoutes.post('/updateJenisMesin/:id', authorize, updateJenisMesin); //update JenisMesin
 
-mastersRoutes.post('/deleteJenisMesin', authorize, deleteJenisMesin); //delete JenisMesin
+mastersRoutes.post('/deleteJenisMesin/:id', authorize, deleteJenisMesin); //delete JenisMesin
 
 //========================================================================================//
 
@@ -34,9 +34,9 @@ mastersRoutes.get('/listJenisWarna', authorize, getAllJenisWarna); //get JenisWa
 
 mastersRoutes.post('/newJenisWarna', authorize, createNewJenisWarna); //new JenisWarna
 
-mastersRoutes.post('/updateJenisWarna', authorize, updateJenisWarna); //update JenisWarna
+mastersRoutes.post('/updateJenisWarna/:id', authorize, updateJenisWarna); //update JenisWarna
 
-mastersRoutes.post('/deleteJenisWarna', authorize, deleteJenisWarna); //delete JenisWarna
+mastersRoutes.post('/deleteJenisWarna/:id', authorize, deleteJenisWarna); //delete JenisWarna
 
 //========================================================================================//
 
@@ -45,8 +45,8 @@ mastersRoutes.get('/listJenisUkuran', authorize, getAllJenisUkuran); //get Jenis
 
 mastersRoutes.post('/newJenisUkuran', authorize, createNewJenisUkuran); //new JenisUkuran
 
-mastersRoutes.post('/updateJenisUkuran', authorize, updateJenisUkuran); //update JenisUkuran
+mastersRoutes.post('/updateJenisUkuran/:id', authorize, updateJenisUkuran); //update JenisUkuran
 
-mastersRoutes.post('/deleteJenisUkuran', authorize, deleteJenisUkuran); //delete JenisUkuran
+mastersRoutes.post('/deleteJenisUkuran/:id', authorize, deleteJenisUkuran); //delete JenisUkuran
 
 export default mastersRoutes;

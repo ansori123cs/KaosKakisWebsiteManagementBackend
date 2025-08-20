@@ -64,3 +64,6 @@ typings/
 #tableschema
 
 table.sql
+
+#ignore upload folder
+.uploads

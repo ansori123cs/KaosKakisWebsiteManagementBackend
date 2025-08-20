@@ -24,9 +24,8 @@ export default class pesanan extends Model {
       defaultValue: Sequelize.Sequelize.literal('CURRENT_TIMESTAMP')
     },
     status: {
-      type: DataTypes.STRING(20),
-      allowNull: true,
-      defaultValue: "pending"
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   }, {
     sequelize,
