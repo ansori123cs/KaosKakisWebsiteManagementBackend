@@ -66,4 +66,4 @@ typings/
 table.sql
 
 #ignore upload folder
-.uploads
+uploads/
