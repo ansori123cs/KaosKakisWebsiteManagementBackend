@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import authorize from '../middleware/auth.middleware.js';
 import upload from '../middleware/upload.middleware.js';
-import { createDataMesin, createJenisBahan, createKaosKaki, deleteKaosKaki, getAllKaosKaki, getKaosKakiById, updateKaosKaki } from '../controllers//transaction/kaos.controller.js';
+import { createKaosKaki, deleteKaosKaki, getAllKaosKaki, getKaosKakiById, getKaosKakiByName, updateKaosKaki } from '../controllers//transaction/kaos.controller.js';
 
 const kaosKakiRouter = Router();
 
 kaosKakiRouter.get('/', getAllKaosKaki);
+kaosKakiRouter.get('/search', getKaosKakiByName);
 
 kaosKakiRouter.get('/:id', getKaosKakiById);
 
@@ -28,9 +29,5 @@ kaosKakiRouter.post(
 kaosKakiRouter.put('/:id', updateKaosKaki);
 
 kaosKakiRouter.delete('/:id', deleteKaosKaki);
-
-kaosKakiRouter.post('/bahan', authorize, createJenisBahan);
-
-kaosKakiRouter.post('/mesin', authorize, createDataMesin);
 
 export default kaosKakiRouter;
