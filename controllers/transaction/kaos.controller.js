@@ -2,7 +2,8 @@ import sequelize from '../../config/databaseConfig.js';
 import { Op } from 'sequelize';
 import fs from 'fs';
 import models from '../../models/init-models.js';
-const { data_mesin, jenis_bahan, jenis_mesin, foto_kaos_kaki, kaos_kaki } = models(sequelize);
+
+const { data_mesin, jenis_bahan, jenis_mesin, foto_kaos_kaki, kaos_kaki, kaos_kaki_variasi_detail } = models(sequelize);
 
 // READ ALL dengan Pagination
 
@@ -345,6 +346,17 @@ const createDataMesin = async (kodeMesin, kaosKakiId, transaction) => {
   );
 };
 
+const createKaosKakiVariasiDetail = async (kodeUkuran, kodeWarna, kaosKakiId, transaction) => {
+  return await kaos_kaki_variasi_detail.create(
+    {
+      kaos_kaki_id: kaosKakiId,
+      ukuran_id: kodeUkuran,
+      warna_id: kodeWarna,
+    },
+    { transaction }
+  );
+};
+
 //==============================================================================================
 
 //CREATE Kaos Kaki
@@ -353,16 +365,32 @@ export const createKaosKaki = async (req, res, next) => {
   try {
     transaction = await sequelize.transaction();
 
-    const { nama_kaos, jenis_bahan_id: jenis_bahan, keterangan, tgl_terakhir_pesan, kode_kaos_kaki, kode_mesin } = req.body;
-
-    console.log(JSON.stringify(req.body, null, ' '));
+    const { nama_kaos, jenis_bahan_id: jenis_bahan, keterangan, tgl_terakhir_pesan, kode_kaos_kaki, kode_mesin, kaos_kaki_variasi } = req.body;
 
     // ✅ Validasi input
+    if (!kaos_kaki_variasi || !Array.isArray(kaos_kaki_variasi) || kaos_kaki_variasi.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Detail pesanan harus diisi dan berupa array',
+      });
+    }
+
     if (!nama_kaos?.trim() || !jenis_bahan || !kode_kaos_kaki?.trim()) {
       return res.status(400).json({
         success: false,
         message: 'Nama, jenis bahan, dan kode kaos kaki harus diisi',
       });
+    }
+
+    for (const item of kaos_kaki_variasi) {
+      if (!item.kode_kaos || !item.kode_ukuran || !item.kode_warna) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Variasi Harus memiliki memiliki kode_kaos, kode_ukuran, kode_warna, dan jumlah',
+        });
+      }
     }
 
     // ✅ Cek duplikasi kode
@@ -402,6 +430,27 @@ export const createKaosKaki = async (req, res, next) => {
         )
       );
       savedPhotos = await Promise.all(photoPromises);
+    }
+
+    //buat data variasi
+    let savedKaosVariasiDetails = [];
+
+    // ✅ Proses setiap item detail pesanan
+    for (const item of kaos_kaki_variasi) {
+      try {
+        // 1. Buat variasi detail (kaos + ukuran + warna)
+        const kaosVariasiDetail = await createKaosKakiVariasiDetail(item.kode_kaos, item.kode_ukuran, item.kode_warna, transaction);
+
+        savedKaosVariasiDetails.push(kaosVariasiDetail);
+      } catch (error) {
+        await transaction.rollback();
+        console.error('Error creating variasi detail:', error);
+        return res.status(400).json({
+          success: false,
+          message: 'Gagal membuat variasi detail pesanan',
+          error: error.message,
+        });
+      }
     }
 
     // buat data mesin

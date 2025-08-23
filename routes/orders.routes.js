@@ -1,8 +1,9 @@
 import { Router } from 'express';
+import { createNewPesanan } from '../controllers/transaction/pesanan.controller.js';
 
 const orderRouter = Router();
 
-orderRouter.get('/', (req, res) => res.send('GET all orders'));
+orderRouter.post('/', createNewPesanan);
 
 orderRouter.post('/', (req, res) => res.send('CREATE new order'));
 

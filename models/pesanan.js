@@ -18,11 +18,6 @@ export default class pesanan extends Model {
       type: DataTypes.TEXT,
       allowNull: true
     },
-    tanggal: {
-      type: DataTypes.DATE,
-      allowNull: true,
-      defaultValue: Sequelize.Sequelize.literal('CURRENT_TIMESTAMP')
-    },
     status: {
       type: DataTypes.INTEGER,
       allowNull: true
@@ -31,7 +26,7 @@ export default class pesanan extends Model {
     sequelize,
     tableName: 'pesanan',
     schema: 'public',
-    timestamps: false,
+    timestamps: true,
     indexes: [
       {
         name: "pesanan_pkey",

@@ -12,6 +12,7 @@ import errorMiddleware from './middleware/error.middleware.js';
 import arcjetMiddleware from './middleware/arcjet.middleware.js';
 import sequelize from './config/databaseConfig.js';
 import mastersRoutes from './routes/masters.routes.js';
+import orderRouter from './routes/orders.routes.js';
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/masters', mastersRoutes);
 app.use('/api/v1/kaosKakis', kaosKakiRouter);
+app.use('/api/v1/orders', orderRouter);
 app.use('/api/v1/users', userRouter);
 
 //error handler middleware

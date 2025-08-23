@@ -1,122 +1,23 @@
 import sequelize from '../../config/databaseConfig.js';
-
+import { Op } from 'sequelize';
 import fs from 'fs';
-import path from 'path';
-
 import models from '../../models/init-models.js';
-const { data_mesin, jenis_bahan, jenis_mesin, foto_kaos_kaki, kaos_kaki, pesanan } = models(sequelize);
+import warna from '../../models/warna.js';
+const { data_mesin, jenis_bahan, jenis_mesin, foto_kaos_kaki, kaos_kaki, kaos_kaki_variasi_detail, pesanan_detail, pesanan } = models(sequelize);
 
-const createPhotoKaosKaki = async (imagePath, kaosKakiId, isPrimary, transaction) => {
-  return await foto_kaos_kaki.create(
-    {
-      kaos_kaki_id: kaosKakiId,
-      url: imagePath,
-      is_primary: isPrimary,
-    },
-    { transaction }
-  );
-};
+// READ ALL dengan Pagination
 
-// Controller: create Kaos Kaki
-export const createKaosKaki = async (req, res, next) => {
-  let transaction;
+export const getAllPesanan = async (req, res, next) => {
   try {
-    transaction = await sequelize.transaction();
+    // Default values untuk pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
 
-    const { nama_kaos, jenis_bahan_id: jenis_bahan, keterangan, tgl_terakhir_pesan, kode_kaos_kaki } = req.body;
-
-    // ✅ Validasi input
-    if (!nama_kaos?.trim() || !jenis_bahan || !kode_kaos_kaki?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Nama, jenis bahan, dan kode kaos kaki harus diisi',
-      });
-    }
-
-    // ✅ Cek duplikasi kode
-    const existingKaosKaki = await kaos_kaki.findOne({
-      where: { kode_kaos_kaki },
-      transaction,
-    });
-
-    if (existingKaosKaki) {
-      return res.status(409).json({
-        success: false,
-        message: 'Kode kaos kaki sudah digunakan',
-      });
-    }
-
-    // ✅ Buat entitas kaos_kaki
-    const newKaosKaki = await kaos_kaki.create(
-      {
-        nama: nama_kaos.trim(),
-        jenis_bahan_id: jenis_bahan,
-        keterangan: keterangan?.trim(),
-        last_order_date: tgl_terakhir_pesan,
-        kode_kaos_kaki: kode_kaos_kaki.trim(),
-      },
-      { transaction }
-    );
-
-    // ✅ Upload foto kalau ada
-    let savedPhotos = [];
-    if (req.files?.length > 0) {
-      const photoPromises = req.files.map((file, index) =>
-        createPhotoKaosKaki(
-          `/uploads/kaoskakisimages/${file.filename}`,
-          newKaosKaki.id,
-          index === 0, // pertama = primary
-          transaction
-        )
-      );
-      savedPhotos = await Promise.all(photoPromises);
-    }
-
-    await transaction.commit();
-
-    return res.status(201).json({
-      success: true,
-      message: 'Kaos kaki berhasil dibuat',
-      data: {
-        kaosKaki: {
-          id: newKaosKaki.id,
-          nama: newKaosKaki.nama,
-          kode: newKaosKaki.kode_kaos_kaki,
-          jenis_bahan_id: newKaosKaki.jenis_bahan_id,
-        },
-        photos: savedPhotos.map((photo) => ({
-          id: photo.id,
-          url: photo.url,
-          is_primary: photo.is_primary,
-        })),
-      },
-    });
-  } catch (error) {
-    if (transaction && !transaction.finished) await transaction.rollback();
-
-    // ✅ Hapus file jika gagal
-    if (req.files?.length > 0) {
-      req.files.forEach((file) => {
-        fs.unlink(`./uploads/kaoskakisimages/${file.filename}`, (err) => {
-          if (err) console.error(`Gagal hapus file: ${file.filename}`, err);
-        });
-      });
-    }
-    if (error.message === 'Validation error') {
-      return res.status(409).json({
-        success: false,
-        message: 'Kaos Kaki Sudah Ada',
-      });
-    }
-    console.error(`[CREATE_KAOS_KAKI_ERROR] ${error}`);
-    next(error);
-  }
-};
-
-// READ ALL
-export const getAllKaosKaki = async (req, res, next) => {
-  try {
-    const kaosKakiList = await kaos_kaki.findAll({
+    // Dapatkan data dengan pagination
+    const { count, rows: kaosKakiList } = await kaos_kaki.findAndCountAll({
+      limit,
+      offset,
       include: [
         {
           model: jenis_bahan,
@@ -125,10 +26,25 @@ export const getAllKaosKaki = async (req, res, next) => {
       ],
     });
 
-    if (!kaosKakiList || kaosKakiList.length === 0) {
-      return res.status(404).json({ success: false, message: 'Kaos kaki tidak ditemukan' });
+    const totalPages = Math.ceil(count / limit);
+
+    // Jika tidak ada data
+    if (kaosKakiList.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'Data kaos kaki kosong',
+        data: {
+          kaosKakiList: [],
+          pagination: {
+            currentPage: page,
+            totalPages,
+            totalItems: count,
+          },
+        },
+      });
     }
 
+    // Proses data untuk menambahkan gambar dan mesin
     const kaosKakiListWithImages = await Promise.all(
       kaosKakiList.map(async (item) => {
         // Mengambil gambar kaos kaki
@@ -136,7 +52,7 @@ export const getAllKaosKaki = async (req, res, next) => {
           where: { kaos_kaki_id: item.id },
         });
 
-        // Mengambil data mesin dengan include yang benar
+        // Mengambil data mesin
         const mesinKaosKaki = await data_mesin.findAll({
           where: { kaos_kaki_id: item.id },
           include: [
@@ -153,95 +69,722 @@ export const getAllKaosKaki = async (req, res, next) => {
           mesin: mesinKaosKaki
             .map((mesin) => {
               // Akses nama mesin melalui relasi
-              return mesin.namaMesin ? mesin.namaMesin.nama : null;
+              return mesin.jenis_mesin ? mesin.jenis_mesin.nama : null;
             })
             .filter((nama) => nama !== null), // Filter null values
         };
       })
     );
 
-    console.log(JSON.stringify(kaosKakiListWithImages, null, ' '));
-    res.status(200).json({ success: true, data: kaosKakiListWithImages });
+    // Response sukses
+    res.status(200).json({
+      success: true,
+      message: 'List Kaos Kaki berhasil diambil',
+      data: {
+        kaosKakiList: kaosKakiListWithImages,
+        pagination: {
+          currentPage: page,
+          itemsPerPage: limit,
+          totalItems: count,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+      },
+    });
   } catch (error) {
+    // Error handling yang lebih spesifik
+    if (!error.statusCode) {
+      error.statusCode = 500;
+      error.message = 'Gagal mengambil data kaos kaki';
+    }
     next(error);
   }
 };
 
-// READ ONE
-export const getKaosKakiById = async (req, res, next) => {
-  try {
-    const kaosKaki = await KaosKaki.findById(req.params.id).populate('jenis_bahan_id').populate('data_mesin_id');
+//==============================================================================================
 
+// READ ONE Kaos Kaki
+
+export const getPesananById = async (req, res, next) => {
+  try {
+    // Mendapatkan ID dari parameter URL (bukan hard-coded)
+    const kaosKakiId = req.params.id; // ID diambil dari route parameter seperti /api/kaos-kaki/:id
+
+    // Mencari kaos kaki berdasarkan primary key dengan include relasi
+    const kaosKaki = await kaos_kaki.findByPk(kaosKakiId, {
+      include: [
+        {
+          model: jenis_bahan,
+          as: 'jenis_bahan', // Menggunakan alias yang sesuai dengan relasi
+        },
+      ],
+    });
+
+    // Jika kaos kaki tidak ditemukan
     if (!kaosKaki) {
-      return res.status(404).json({ success: false, message: 'Kaos kaki tidak ditemukan' });
+      const error = new Error('Kaos kaki tidak ditemukan');
+      error.statusCode = 404;
+      throw error; // Melempar error untuk ditangkap oleh catch block
     }
 
-    const images = await PhotoKaosKaki.find({ kaos_kaki_id: kaosKaki._id });
+    // Mengambil gambar kaos kaki
+    const images = await foto_kaos_kaki.findAll({
+      where: { kaos_kaki_id: kaosKaki.id },
+    });
 
-    const kaosWithImages = {
-      ...kaosKaki.toObject(),
-      images: images.map((img) => img.url),
+    // Mengambil data mesin yang terkait
+    const mesinKaosKaki = await data_mesin.findAll({
+      where: { kaos_kaki_id: kaosKaki.id },
+      include: [
+        {
+          model: jenis_mesin,
+          as: 'jenis_mesin', // Menggunakan alias yang sesuai dengan relasi
+        },
+      ],
+    });
+
+    // Membuat response object dengan data yang lengkap
+    const kaosKakiWithMachineAndImages = {
+      ...kaosKaki.toJSON(), // Mengconvert instance Sequelize ke object JSON biasa
+      images: images.map((img) => img.url), // Extract URL gambar
+      mesin: mesinKaosKaki
+        .map((mesin) => {
+          // Akses nama mesin melalui relasi
+          return mesin.jenis_mesin ? mesin.jenis_mesin.nama : null;
+        })
+        .filter((nama) => nama !== null), // Filter null values
     };
 
-    res.status(200).json({ success: true, data: kaosWithImages });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// UPDATE
-export const updateKaosKaki = async (req, res, next) => {
-  try {
-    const updatedKaosKaki = await KaosKaki.findByIdAndUpdate(
-      req.params.id,
-      {
-        ...req.body,
-        updated_at: new Date(),
-        userEdited: req.user?.username || 'admin',
+    // Response sukses
+    res.status(200).json({
+      success: true,
+      message: 'Kaos Kaki berhasil diambil',
+      data: {
+        kaosKaki: kaosKakiWithMachineAndImages, // Mengirim data yang sudah diproses
       },
-      { new: true }
+    });
+  } catch (error) {
+    // Error handling yang lebih spesifik
+    if (!error.statusCode) {
+      error.statusCode = 500;
+      error.message = 'Gagal mengambil data kaos kaki: ' + error.message;
+    }
+    next(error); // Meneruskan error ke middleware error handling
+  }
+};
+//==============================================================================================
+
+// READ Search by name and pagination dan filter tambahan
+
+export const getKaosKakiByName = async (req, res, next) => {
+  try {
+    // Default values untuk pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const searchedNameKaosKaki = req.query.nama_kaos || '';
+    const jenisBahanId = req.query.jenis_bahan || null;
+    const jenisMesinId = req.query.jenis_mesin || null;
+    const offset = (page - 1) * limit;
+
+    // Membuat kondisi pencarian utama dengan operator LIKE untuk pencarian parsial
+    const whereCondition = {};
+
+    // Filter berdasarkan nama kaos kaki (jika ada)
+    if (searchedNameKaosKaki) {
+      whereCondition.nama = {
+        [Op.like]: `%${searchedNameKaosKaki}%`, // Mencari nama yang mengandung string yang dicari
+      };
+    }
+
+    // Filter berdasarkan jenis bahan (jika ada)
+    if (jenisBahanId) {
+      whereCondition.jenis_bahan_id = jenisBahanId; // Filter by jenis_bahan_id
+    }
+
+    // Persiapan filter untuk mesin (akan digunakan dalam subquery)
+    let mesinFilterCondition = {};
+    if (jenisMesinId) {
+      mesinFilterCondition.jenis_mesin_id = jenisMesinId; // Filter by jenis_mesin_id
+    }
+
+    // Dapatkan data dengan pagination dan filtering
+    const { count, rows: kaosKakiList } = await kaos_kaki.findAndCountAll({
+      limit,
+      offset,
+      include: [
+        {
+          model: jenis_bahan,
+          as: 'jenis_bahan',
+          attributes: ['id', 'nama', 'kode_bahan'],
+        },
+      ],
+      where: whereCondition,
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    if (kaosKakiList.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: searchedNameKaosKaki ? `Tidak ditemukan kaos kaki dengan nama '${searchedNameKaosKaki}'` : 'Data kaos kaki kosong',
+        data: {
+          kaosKakiList: [],
+          pagination: {
+            currentPage: page,
+            totalPages,
+            totalItems: count,
+            itemsPerPage: limit,
+          },
+        },
+      });
+    }
+
+    const kaosKakiListWithImages = await Promise.all(
+      kaosKakiList.map(async (item) => {
+        // Mengambil gambar kaos kaki
+        const images = await foto_kaos_kaki.findAll({
+          where: { kaos_kaki_id: item.id },
+          attributes: ['id', 'url', 'createdAt'], // Hanya ambil field yang diperlukan
+        });
+
+        // Mengambil data mesin dengan filter jenis mesin (jika ada)
+        const mesinKaosKaki = await data_mesin.findAll({
+          where: {
+            kaos_kaki_id: item.id,
+            ...mesinFilterCondition, // Terapkan filter jenis mesin jika ada
+          },
+          include: [
+            {
+              model: jenis_mesin,
+              as: 'jenis_mesin',
+              attributes: ['id', 'nama', 'kode_mesin'], // Hanya ambil field yang diperlukan
+            },
+          ],
+          attributes: ['id', 'jenis_mesin_id', 'createdAt'], // Hanya ambil field yang diperlukan
+        });
+
+        return {
+          ...item.toJSON(), // Mengconvert instance Sequelize ke object JSON biasa
+          images: images.map((img) => img.url), // Extract URL gambar
+          mesin: mesinKaosKaki
+            .map((mesin) => {
+              // Akses detail mesin melalui relasi
+              return mesin.jenis_mesin
+                ? {
+                    id: mesin.jenis_mesin.id,
+                    nama: mesin.jenis_mesin.nama,
+                    keterangan: mesin.jenis_mesin.keterangan,
+                  }
+                : null;
+            })
+            .filter((mesin) => mesin !== null), // Filter null values
+        };
+      })
     );
-    if (!updatedKaosKaki) {
-      return res.status(404).json({ success: false, message: 'Kaos kaki tidak ditemukan' });
-    }
-    res.json({ success: true, data: updatedKaosKaki });
+
+    // Filter tambahan: jika ada filter jenis mesin, hapus item yang tidak memiliki mesin sesuai filter
+    const filteredKaosKakiList = jenisMesinId ? kaosKakiListWithImages.filter((item) => item.mesin.length > 0) : kaosKakiListWithImages;
+
+    // Hitung ulang total items setelah filter mesin
+    const filteredTotalItems = jenisMesinId ? filteredKaosKakiList.length : count;
+
+    // Response sukses
+    res.status(200).json({
+      success: true,
+      message: searchedNameKaosKaki ? `Pencarian kaos kaki dengan nama '${searchedNameKaosKaki}' berhasil` : 'List Kaos Kaki berhasil diambil',
+      data: {
+        kaosKakiList: filteredKaosKakiList,
+        pagination: {
+          currentPage: page,
+          itemsPerPage: limit,
+          totalItems: filteredTotalItems, // Gunakan count yang sudah difilter
+          totalPages: Math.ceil(filteredTotalItems / limit), // Hitung ulang total pages
+          hasNextPage: page < Math.ceil(filteredTotalItems / limit), // Apakah ada halaman berikutnya
+          hasPreviousPage: page > 1, // Apakah ada halaman sebelumnya
+        },
+        filters: {
+          // Tambahkan info filter yang digunakan
+          nama: searchedNameKaosKaki || 'Semua',
+          jenis_bahan_id: jenisBahanId || 'Semua',
+          jenis_mesin_id: jenisMesinId || 'Semua',
+        },
+      },
+    });
   } catch (error) {
+    // Error handling yang lebih spesifik
+    if (!error.statusCode) {
+      error.statusCode = 500;
+      error.message = 'Gagal mengambil data kaos kaki: ' + error.message;
+    }
+    next(error); // Meneruskan error ke middleware error handling
+  }
+};
+
+//==============================================================================================
+
+//utility photo dan machines
+
+const createPhotoKaosKaki = async (imagePath, kaosKakiId, isPrimary, transaction) => {
+  return await foto_kaos_kaki.create(
+    {
+      kaos_kaki_id: kaosKakiId,
+      url: imagePath,
+      is_primary: isPrimary,
+    },
+    { transaction }
+  );
+};
+
+const createDataMesin = async (kodeMesin, kaosKakiId, transaction) => {
+  return await data_mesin.create(
+    {
+      kaos_kaki_id: kaosKakiId,
+      jenis_mesin_id: kodeMesin,
+    },
+    { transaction }
+  );
+};
+
+const createKaosKakiVariasiDetail = async (kaos_kaki_id, ukuran_id, warna_id, transaction) => {
+  return await kaos_kaki_variasi_detail.create(
+    {
+      kaos_kaki_id: kaos_kaki_id,
+      ukuran_id: ukuran_id,
+      warna_id: warna_id,
+    },
+    { transaction }
+  );
+};
+
+const createPesananDetail = async (pesanan_id, kaos_kaki_variasi_id, jumlah, transaction) => {
+  return await pesanan_detail.create(
+    {
+      pesanan_id: pesanan_id,
+      kaos_kaki_variasi_id: kaos_kaki_variasi_id,
+      jumlah: jumlah,
+      harga_satuan: 7000,
+    },
+    { transaction }
+  );
+};
+
+//==============================================================================================
+
+//CREATE Kaos Kaki
+export const createNewPesanan = async (req, res, next) => {
+  let transaction;
+  try {
+    transaction = await sequelize.transaction();
+    // Data yang diharapkan dari request body:
+    // {
+    //   "nama_pemesan": "Pak Azhari",
+    //   "catatan": "minta cepat ",
+    //   "detail_pesanan": [
+    //     {
+    //       "kode_kaos": 1,        // kaos_kaki_id
+    //       "kode_ukuran": 2,      // ukuran_id
+    //       "kode_warna": 3,       // warna_id
+    //       "jumlah": 10           // quantity
+    //     },
+    //     {
+    //       "kode_kaos": 2,
+    //       "kode_ukuran": 1,
+    //       "kode_warna": 2,
+    //       "jumlah": 5
+    //     }
+    //   ]
+    // }
+
+    const { nama_pemesan, catatan, detail_pesanan } = req.body;
+
+    console.log('Data Pesanan:', JSON.stringify(req.body, null, ' '));
+
+    // ✅ Validasi input
+    if (!nama_pemesan?.trim()) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Nama pemesan harus diisi',
+      });
+    }
+
+    if (!detail_pesanan || !Array.isArray(detail_pesanan) || detail_pesanan.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Detail pesanan harus diisi dan berupa array',
+      });
+    }
+
+    for (const item of detail_pesanan) {
+      if (!item.kode_kaos || !item.kode_ukuran || !item.kode_warna || !item.jumlah) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Setiap detail pesanan harus memiliki kode_kaos, kode_ukuran, kode_warna, dan jumlah',
+        });
+      }
+
+      if (item.jumlah <= 0) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Jumlah pesanan harus lebih dari 0',
+        });
+      }
+    }
+
+    const newPesanan = await pesanan.create(
+      {
+        nama_pemesan: nama_pemesan.trim(),
+        catatan: catatan?.trim() || '',
+        status: 1, // Status default
+      },
+      { transaction }
+    );
+    let savedKaosVariasiDetails = [];
+    let savedPesananDetails = [];
+
+    // ✅ Proses setiap item detail pesanan
+    for (const item of detail_pesanan) {
+      try {
+        // 1. Buat variasi detail (kaos + ukuran + warna)
+        const kaosVariasiDetail = await createKaosKakiVariasiDetail(item.kode_kaos, item.kode_ukuran, item.kode_warna, transaction);
+
+        savedKaosVariasiDetails.push(kaosVariasiDetail);
+
+        // 2. Buat detail pesanan yang menghubungkan pesanan dengan variasi
+        const pesananDetail = await createPesananDetail(
+          newPesanan.id, // ID pesanan yang baru dibuat
+          kaosVariasiDetail.id, // ID variasi detail yang baru dibuat
+          item.jumlah,
+          transaction
+        );
+
+        savedPesananDetails.push(pesananDetail);
+      } catch (error) {
+        await transaction.rollback();
+        console.error('Error creating variasi detail:', error);
+        return res.status(400).json({
+          success: false,
+          message: 'Gagal membuat variasi detail pesanan',
+          error: error.message,
+        });
+      }
+    }
+
+    // ✅ Commit semua perubahan ke database
+    await transaction.commit();
+    return res.status(201).json({
+      success: true,
+      message: 'Pesanan berhasil dibuat',
+      data: {
+        pesanan: {
+          id: newPesanan.id,
+          nama_pemesan: newPesanan.nama_pemesan,
+          catatan: newPesanan.catatan,
+          tanggal_pesan: newPesanan.createdAt,
+          status: newPesanan.status,
+        },
+        variasi_details: savedKaosVariasiDetails.map((variasi) => ({
+          id: variasi.id,
+          kaos_kaki_id: variasi.kaos_kaki_id,
+          ukuran_id: variasi.ukuran_id,
+          warna_id: variasi.warna_id,
+        })),
+        pesanan_details: savedPesananDetails.map((detail) => ({
+          id: detail.id,
+          pesanan_id: detail.pesanan_id,
+          kaos_kaki_variasi_id: detail.kaos_kaki_variasi_id,
+          jumlah: detail.jumlah,
+        })),
+      },
+    });
+  } catch (error) {
+    // ✅ Rollback transaction jika terjadi error
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
+
+    console.error(`[CREATE_PESANAN_ERROR] ${error}`);
+
+    // ✅ Handle error validasi
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Error validasi data',
+        errors: error.errors.map((err) => err.message),
+      });
+    }
+
+    // ✅ Handle foreign key constraint error
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Data referensi tidak valid (kaos, ukuran, atau warna tidak ditemukan)',
+      });
+    }
+
     next(error);
   }
 };
 
-// DELETE
+//==============================================================================================
+
+// UPDATE Kaos Kaki
+
+export const updateKaosKaki = async (req, res, next) => {
+  let transaction;
+  try {
+    transaction = await sequelize.transaction();
+
+    const { id } = req.params; // ID kaos kaki yang akan diupdate
+    const { nama_kaos, jenis_bahan_id: jenis_bahan, keterangan, tgl_terakhir_pesan, kode_kaos_kaki, kode_mesin } = req.body;
+
+    console.log('Update Data:', JSON.stringify(req.body, null, ' '));
+
+    // ✅ Cari kaos kaki yang akan diupdate
+    const existingKaosKaki = await kaos_kaki.findByPk(id, { transaction });
+
+    if (!existingKaosKaki) {
+      return res.status(404).json({
+        success: false,
+        message: 'Kaos kaki tidak ditemukan',
+      });
+    }
+
+    // ✅ Cek duplikasi kode (kecuali untuk data yang sedang diupdate)
+    if (kode_kaos_kaki && kode_kaos_kaki !== existingKaosKaki.kode_kaos_kaki) {
+      const duplicateKaosKaki = await kaos_kaki.findOne({
+        where: {
+          kode_kaos_kaki: kode_kaos_kaki.trim(),
+          id: { [Op.ne]: id }, // Tidak termasuk data yang sedang diupdate
+        },
+        transaction,
+      });
+
+      if (duplicateKaosKaki) {
+        await transaction.rollback();
+        return res.status(409).json({
+          success: false,
+          message: 'Kode kaos kaki sudah digunakan oleh data lain',
+        });
+      }
+    }
+
+    // ✅ Prepare data untuk update (hanya field yang ada di request)
+    const updateData = {};
+    if (nama_kaos !== undefined) updateData.nama = nama_kaos.trim();
+    if (jenis_bahan !== undefined) updateData.jenis_bahan_id = jenis_bahan;
+    if (keterangan !== undefined) updateData.keterangan = keterangan?.trim();
+    if (tgl_terakhir_pesan !== undefined) updateData.last_order_date = tgl_terakhir_pesan;
+    if (kode_kaos_kaki !== undefined) updateData.kode_kaos_kaki = kode_kaos_kaki.trim();
+
+    // ✅ Update data kaos kaki jika ada perubahan
+    if (Object.keys(updateData).length > 0) {
+      await existingKaosKaki.update(updateData, { transaction });
+    }
+
+    // ✅ Handle foto: hanya update jika ada file baru yang diupload
+    let savedPhotos = [];
+    if (req.files && req.files.length > 0) {
+      // Optional: jika ingin menghapus foto lama saat upload baru
+      // await foto_kaos_kaki.destroy({ where: { kaos_kaki_id: id }, transaction });
+
+      // Upload foto baru (tambah tanpa hapus yang lama)
+      const photoPromises = req.files.map((file, index) =>
+        createPhotoKaosKaki(
+          `/uploads/kaoskakisimages/${file.filename}`,
+          id,
+          index === 0, // pertama = primary
+          transaction
+        )
+      );
+      savedPhotos = await Promise.all(photoPromises);
+    }
+
+    // ✅ Handle mesin: hanya update jika kode_mesin ada di request
+    let savedDataMesin = [];
+    if (kode_mesin !== undefined) {
+      // Hapus semua data mesin lama jika ingin replace
+      await data_mesin.destroy({
+        where: { kaos_kaki_id: id },
+        transaction,
+      });
+
+      // Buat data mesin baru
+      if (kode_mesin.length > 0) {
+        const mesinPromises = kode_mesin.map((kode) => createDataMesin(kode, id, transaction));
+        savedDataMesin = await Promise.all(mesinPromises);
+      }
+    }
+
+    await transaction.commit();
+
+    // ✅ Dapatkan data terbaru untuk response
+    const updatedKaosKaki = await kaos_kaki.findByPk(id, {
+      include: [
+        {
+          model: jenis_bahan,
+          as: 'jenis_bahan',
+        },
+      ],
+    });
+
+    const photos = await foto_kaos_kaki.findAll({
+      where: { kaos_kaki_id: id },
+    });
+
+    const machines = await data_mesin.findAll({
+      where: { kaos_kaki_id: id },
+      include: [
+        {
+          model: jenis_mesin,
+          as: 'jenis_mesin',
+        },
+      ],
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Kaos kaki berhasil diupdate',
+      data: {
+        kaosKaki: {
+          id: updatedKaosKaki.id,
+          nama: updatedKaosKaki.nama,
+          kode: updatedKaosKaki.kode_kaos_kaki,
+          jenis_bahan_id: updatedKaosKaki.jenis_bahan_id,
+          jenis_bahan: updatedKaosKaki.jenis_bahan,
+          keterangan: updatedKaosKaki.keterangan,
+          last_order_date: updatedKaosKaki.last_order_date,
+          status: updatedKaosKaki.status,
+        },
+        photos: photos.map((photo) => ({
+          id: photo.id,
+          url: photo.url,
+          is_primary: photo.is_primary,
+        })),
+        machines: machines.map((machine) => ({
+          id: machine.id,
+          jenis_mesin_id: machine.jenis_mesin_id,
+          jenis_mesin: machine.jenis_mesin,
+        })),
+      },
+    });
+  } catch (error) {
+    if (transaction && !transaction.finished) await transaction.rollback();
+
+    // ✅ Hapus file jika gagal
+    if (req.files?.length > 0) {
+      req.files.forEach((file) => {
+        fs.unlink(`./uploads/kaoskakisimages/${file.filename}`, (err) => {
+          if (err) console.error(`Gagal hapus file: ${file.filename}`, err);
+        });
+      });
+    }
+
+    console.error(`[UPDATE_KAOS_KAKI_ERROR] ${error}`);
+
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Data validation error',
+        errors: error.errors.map((err) => err.message),
+      });
+    }
+
+    next(error);
+  }
+};
+
+//==============================================================================================
+
+// DELETE Kaos Kaki
+
 export const deleteKaosKaki = async (req, res, next) => {
+  let transaction;
   try {
-    const deletedKaosKaki = await KaosKaki.findByIdAndDelete(req.params.id);
-    if (!deletedKaosKaki) {
-      return res.status(404).json({ success: false, message: 'Kaos kaki tidak ditemukan' });
+    // Memulai transaction untuk memastikan konsistensi data
+    transaction = await sequelize.transaction();
+
+    const { id } = req.params; // Mendapatkan ID kaos kaki dari parameter URL
+
+    // ✅ Pertama: Cari kaos kaki untuk memastikan existensi
+    const kaosKaki = await kaos_kaki.findByPk(id, { transaction });
+
+    if (!kaosKaki) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Kaos kaki tidak ditemukan',
+      });
     }
-    res.status(200).json({ success: true, message: 'Kaos kaki berhasil dihapus' });
+
+    // ✅ Kedua: Hapus semua foto terkait kaos kaki
+    await foto_kaos_kaki.destroy({
+      where: { kaos_kaki_id: id },
+      transaction,
+    });
+
+    // ✅ Ketiga: Hapus semua data mesin terkait kaos kaki
+    await data_mesin.destroy({
+      where: { kaos_kaki_id: id },
+      transaction,
+    });
+
+    // ✅ Keempat: Hapus data kaos kaki itu sendiri
+    const deletedKaosKaki = await kaos_kaki.destroy({
+      where: { id },
+      transaction,
+    });
+
+    // Commit transaction jika semua operasi berhasil
+    await transaction.commit();
+
+    // ✅ Hapus file foto dari storage (jika diperlukan)
+    // Note: Ini opsional, tergantung kebutuhan aplikasi
+    // const photos = await foto_kaos_kaki.findAll({
+    //   where: { kaos_kaki_id: id },
+    //   paranoid: false // Jika menggunakan soft delete
+    // });
+    // photos.forEach(photo => {
+    //   const filename = photo.url.split('/').pop();
+    //   fs.unlink(`./uploads/kaoskakisimages/${filename}`, (err) => {
+    //     if (err) console.error('Gagal hapus file:', err);
+    //   });
+    // });
+
+    res.status(200).json({
+      success: true,
+      message: 'Kaos kaki berhasil dihapus',
+      data: {
+        deletedId: id,
+        deletedKaosKaki: {
+          id: kaosKaki.id,
+          nama: kaosKaki.nama,
+          kode: kaosKaki.kode_kaos_kaki,
+        },
+      },
+    });
   } catch (error) {
+    // Rollback transaction jika terjadi error
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
+
+    console.error(`[DELETE_KAOS_KAKI_ERROR] ${error.message}`);
+
+    // Error handling spesifik
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak dapat menghapus kaos kaki karena masih terkait dengan data lain',
+      });
+    }
+
     next(error);
   }
 };
 
-// CREATE BAHAN
-export const createJenisBahan = async (req, res, next) => {
-  try {
-    const newJenisBahan = await JenisBahan.create({
-      ...req.body,
-    });
-    res.status(201).json({ success: true, data: newJenisBahan });
-  } catch (error) {
-    next(error);
-  }
-};
-// CREATE MESIN
-export const createDataMesin = async (req, res, next) => {
-  try {
-    const newDataMesin = await DataMesin.create({
-      ...req.body,
-    });
-    res.status(201).json({ success: true, data: newDataMesin });
-  } catch (error) {
-    next(error);
-  }
-};
+//==============================================================================================
