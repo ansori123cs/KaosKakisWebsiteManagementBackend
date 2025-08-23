@@ -346,15 +346,20 @@ const createDataMesin = async (kodeMesin, kaosKakiId, transaction) => {
   );
 };
 
-const createKaosKakiVariasiDetail = async (kaos_kaki_id, ukuran_id, warna_id, transaction) => {
-  return await kaos_kaki_variasi_detail.create(
-    {
+const findOrCreateKaosKakiVariasiDetail = async (kaos_kaki_id, ukuran_id, warna_id, transaction) => {
+  return await kaos_kaki_variasi_detail.findOrCreate({
+    where: {
       kaos_kaki_id: kaos_kaki_id,
       ukuran_id: ukuran_id,
       warna_id: warna_id,
     },
-    { transaction }
-  );
+    defaults: {
+      kaos_kaki_id: kaos_kaki_id,
+      ukuran_id: ukuran_id,
+      warna_id: warna_id,
+    },
+    transaction,
+  });
 };
 
 const createPesananDetail = async (pesanan_id, kaos_kaki_variasi_id, jumlah, transaction) => {
@@ -387,12 +392,7 @@ export const createNewPesanan = async (req, res, next) => {
     //       "kode_warna": 3,       // warna_id
     //       "jumlah": 10           // quantity
     //     },
-    //     {
-    //       "kode_kaos": 2,
-    //       "kode_ukuran": 1,
-    //       "kode_warna": 2,
-    //       "jumlah": 5
-    //     }
+
     //   ]
     // }
 
@@ -443,18 +443,14 @@ export const createNewPesanan = async (req, res, next) => {
       },
       { transaction }
     );
-    let savedKaosVariasiDetails = [];
     let savedPesananDetails = [];
 
     // ✅ Proses setiap item detail pesanan
     for (const item of detail_pesanan) {
       try {
-        // 1. Buat variasi detail (kaos + ukuran + warna)
-        const kaosVariasiDetail = await createKaosKakiVariasiDetail(item.kode_kaos, item.kode_ukuran, item.kode_warna, transaction);
+        // 1. Cari atau buat variasi detail (kaos kaki + ukuran + warna)
+        const [kaosVariasiDetail, created] = await findOrCreateKaosKakiVariasiDetail(item.kode_kaos, item.ukuran_id, item.warna_id, transaction);
 
-        savedKaosVariasiDetails.push(kaosVariasiDetail);
-
-        // 2. Buat detail pesanan yang menghubungkan pesanan dengan variasi
         const pesananDetail = await createPesananDetail(
           newPesanan.id, // ID pesanan yang baru dibuat
           kaosVariasiDetail.id, // ID variasi detail yang baru dibuat
@@ -462,7 +458,13 @@ export const createNewPesanan = async (req, res, next) => {
           transaction
         );
 
-        savedPesananDetails.push(pesananDetail);
+        //update stok incoming
+
+        //====================
+        savedPesananDetails.push({
+          pesanan_detail: pesananDetail,
+          variasi_detail: kaosVariasiDetail,
+        });
       } catch (error) {
         await transaction.rollback();
         console.error('Error creating variasi detail:', error);
@@ -476,6 +478,34 @@ export const createNewPesanan = async (req, res, next) => {
 
     // ✅ Commit semua perubahan ke database
     await transaction.commit();
+
+    // ✅ Dapatkan data lengkap untuk response
+    const pesananDetailsWithRelations = await pesanan_detail.findAll({
+      where: { pesanan_id: newPesanan.id },
+      include: [
+        {
+          model: kaos_kaki_variasi_detail,
+          as: 'kaos_kaki_variasi',
+          include: [
+            {
+              model: kaos_kaki,
+              as: 'kaos_kaki',
+              attributes: ['id', 'nama', 'kode_kaos_kaki'],
+            },
+            {
+              model: ukuran,
+              as: 'ukuran',
+              attributes: ['id', 'nama', 'kode'],
+            },
+            {
+              model: warna,
+              as: 'warna',
+              attributes: ['id', 'nama', 'kode'],
+            },
+          ],
+        },
+      ],
+    });
     return res.status(201).json({
       success: true,
       message: 'Pesanan berhasil dibuat',
@@ -487,17 +517,31 @@ export const createNewPesanan = async (req, res, next) => {
           tanggal_pesan: newPesanan.createdAt,
           status: newPesanan.status,
         },
-        variasi_details: savedKaosVariasiDetails.map((variasi) => ({
-          id: variasi.id,
-          kaos_kaki_id: variasi.kaos_kaki_id,
-          ukuran_id: variasi.ukuran_id,
-          warna_id: variasi.warna_id,
-        })),
-        pesanan_details: savedPesananDetails.map((detail) => ({
+
+        pesanan_details: pesananDetailsWithRelations.map((detail, index) => ({
           id: detail.id,
           pesanan_id: detail.pesanan_id,
-          kaos_kaki_variasi_id: detail.kaos_kaki_variasi_id,
           jumlah: detail.jumlah,
+          harga: detail.harga,
+          subtotal: detail.subtotal,
+          variasi: {
+            id: detail.kaos_kaki_variasi.id,
+            kaos_kaki: {
+              id: detail.kaos_kaki_variasi.kaos_kaki.id,
+              nama: detail.kaos_kaki_variasi.kaos_kaki.nama,
+              kode: detail.kaos_kaki_variasi.kaos_kaki.kode_kaos_kaki,
+            },
+            ukuran: {
+              id: detail.kaos_kaki_variasi.ukuran.id,
+              nama: detail.kaos_kaki_variasi.ukuran.nama,
+              kode: detail.kaos_kaki_variasi.ukuran.kode,
+            },
+            warna: {
+              id: detail.kaos_kaki_variasi.warna.id,
+              nama: detail.kaos_kaki_variasi.warna.nama,
+              kode: detail.kaos_kaki_variasi.warna.kode,
+            },
+          },
         })),
       },
     });

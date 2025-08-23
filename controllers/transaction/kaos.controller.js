@@ -593,6 +593,33 @@ export const updateKaosKaki = async (req, res, next) => {
         savedDataMesin = await Promise.all(mesinPromises);
       }
     }
+    // ✅ Handle mesin: hanya update jika kode_mesin ada di request
+    let savedKaosVariasiDetails = [];
+    if (kaos_kaki_variasi !== undefined) {
+      // Hapus semua data mesin lama jika ingin replace
+      await kaos_kaki_variasi_detail.destroy({
+        where: { kaos_kaki_id: id },
+        transaction,
+      });
+
+      // ✅ Proses setiap item detail pesanan
+      for (const item of kaos_kaki_variasi) {
+        try {
+          // 1. Buat variasi detail (kaos + ukuran + warna)
+          const kaosVariasiDetail = await createKaosKakiVariasiDetail(item.kode_kaos, item.kode_ukuran, item.kode_warna, transaction);
+
+          savedKaosVariasiDetails.push(kaosVariasiDetail);
+        } catch (error) {
+          await transaction.rollback();
+          console.error('Error creating variasi detail:', error);
+          return res.status(400).json({
+            success: false,
+            message: 'Gagal membuat variasi detail pesanan',
+            error: error.message,
+          });
+        }
+      }
+    }
 
     await transaction.commit();
 
@@ -707,6 +734,10 @@ export const deleteKaosKaki = async (req, res, next) => {
       transaction,
     });
 
+    await kaos_kaki_variasi_detail.destroy({
+      where: { kaos_kaki_id: id },
+      transaction,
+    });
     // ✅ Keempat: Hapus data kaos kaki itu sendiri
     const deletedKaosKaki = await kaos_kaki.destroy({
       where: { id },
