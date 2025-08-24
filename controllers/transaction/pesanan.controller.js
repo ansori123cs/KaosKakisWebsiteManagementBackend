@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 import fs from 'fs';
 import models from '../../models/init-models.js';
 import warna from '../../models/warna.js';
-const { data_mesin, jenis_bahan, jenis_mesin, foto_kaos_kaki, kaos_kaki, kaos_kaki_variasi_detail, pesanan_detail, pesanan } = models(sequelize);
+const { data_mesin, jenis_bahan, jenis_mesin, ukuran, foto_kaos_kaki, kaos_kaki, kaos_kaki_variasi_detail, pesanan_detail, pesanan } = models(sequelize);
 
 // READ ALL dengan Pagination
 
@@ -490,17 +490,17 @@ export const createNewPesanan = async (req, res, next) => {
             {
               model: kaos_kaki,
               as: 'kaos_kaki',
-              attributes: ['id', 'nama', 'kode_kaos_kaki'],
+              attributes: ['id', 'nama'],
             },
             {
               model: ukuran,
               as: 'ukuran',
-              attributes: ['id', 'nama', 'kode'],
+              attributes: ['id', 'nama'],
             },
             {
               model: warna,
               as: 'warna',
-              attributes: ['id', 'nama', 'kode'],
+              attributes: ['id', 'nama'],
             },
           ],
         },
