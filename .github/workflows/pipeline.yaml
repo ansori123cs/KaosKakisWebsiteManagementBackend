@@ -13,7 +13,7 @@ jobs:
 
       - name: Set Up Node.js
         uses: actions/setup-node@v3
-        width:
+        with:
           node-version: 16
 
       - name: Install Dependencies
